@@ -4,6 +4,7 @@ const res = require("express/lib/response");
 const morgan = require("morgan");
 const app = express();
 const db = require("./db");
+const cors = require("cors");
 
 // Logs response status and time (ms)
 app.use(morgan("dev"));
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(cors())
 // Convert client's response from JSON to Javascript object
 app.use(express.json());
 
@@ -31,7 +33,7 @@ app.get("/api/v1/restaurants", async (req, res) => {
             status: "success",
             results: results.rows.length,
             data: {
-                restaurant: results.rows
+                restaurants: results.rows
             },
         });
     } catch (err) {
@@ -85,7 +87,7 @@ app.post("/api/v1/restaurants", async (req, res) => {
 app.put("/api/v1/restaurants/:id", (req, res) => {
     try {
         const results = db.query(
-            "UPDATE restaurants SET (name=$1, location=$2, price_range=$3) where id=$4",
+            "UPDATE restaurants SET name=$1, location=$2, price_range=$3 where id=$4",
             [req.body.name, req.body.location, req.body.price_range, req.params.id]
         );
         res.status(200).json({
@@ -102,9 +104,18 @@ app.put("/api/v1/restaurants/:id", (req, res) => {
 
 // DELETE restaurant
 app.delete("/api/v1/restaurants/:id", (req, res) => {
-    res.status(204).json({
-        status: "success"
-    })
+    try {
+        const results = db.query(
+            "DELETE FROM restaurants where id=$1",
+            [req.params.id]
+        );
+        res.status(200).json({
+            status: "success",
+        })
+    } catch (err) {
+        console.log('ERROR: ', err);
+    }
+
 });
 
 const port = process.env.PORT || 3001;
