@@ -20,6 +20,7 @@ app.use((req, res, next) => {
     next();
 });
 
+// Allow CORS
 app.use(cors())
 // Convert client's response from JSON to Javascript object
 app.use(express.json());
@@ -46,16 +47,23 @@ app.get("/api/v1/restaurants", async (req, res) => {
 app.get("/api/v1/restaurants/:id", async (req, res) => {
     console.log(req.params.id);
     try {
-        // Use this format to prevent SQL injection attacks
-        const results = await db.query(
+        // Use $1 to prevent SQL injection attacks
+        const restaurant = await db.query(
             "select * from restaurants where id=$1", [req.params.id]
         );
+
+        // Use this format to prevent SQL injection attacks
+        const reviews = await db.query(
+            "select * from reviews where restaurant_id=$1", [req.params.id]
+        );
+
         res.status(200).json({
             status: "success",
             data: {
-                restaurant: results.rows[0]
+                restaurant: restaurant.rows[0],
+                reviews: reviews.rows
             },
-        })
+        });
 
     } catch (err) {
         console.log('ERROR: ', err);
