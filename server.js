@@ -28,13 +28,15 @@ app.use(express.json());
 // GET all restaurants
 app.get("/api/v1/restaurants", async (req, res) => {
     try {
-        const results = await db.query("select * from restaurants");
-        console.log(results);
+        const restaurantRatingsData = await db.query(
+            "SELECT * FROM restaurants LEFT JOIN (SELECT restaurant_id, COUNT(*), TRUNC(AVG(rating),1) AS average_rating FROM reviews GROUP BY restaurant_id) reviews ON restaurants.id = reviews.restaurant_id;"
+        );
+
         res.status(200).json({
             status: "success",
-            results: results.rows.length,
+            results: restaurantRatingsData.rows.length,
             data: {
-                restaurants: results.rows
+                restaurants: restaurantRatingsData.rows
             },
         });
     } catch (err) {
@@ -49,10 +51,10 @@ app.get("/api/v1/restaurants/:id", async (req, res) => {
     try {
         // Use $1 to prevent SQL injection attacks
         const restaurant = await db.query(
-            "select * from restaurants where id=$1", [req.params.id]
+            "SELECT * FROM restaurants LEFT JOIN (SELECT restaurant_id, COUNT(*), TRUNC(AVG(rating),1) AS average_rating FROM reviews GROUP BY restaurant_id) reviews ON restaurants.id = reviews.restaurant_id where id=$1;", [req.params.id]
         );
 
-        // Use this format to prevent SQL injection attacks
+        // Get all reviews for restaurant
         const reviews = await db.query(
             "select * from reviews where restaurant_id=$1", [req.params.id]
         );
@@ -123,8 +125,25 @@ app.delete("/api/v1/restaurants/:id", async (req, res) => {
     } catch (err) {
         console.log('ERROR: ', err);
     }
-
 });
+
+app.post("/api/v1/restaurants/:id/addReview", async (req, res) => {
+    try {
+        const newReview = await db.query(
+            "INSERT INTO reviews (restaurant_id, name, content, rating) values ($1, $2, $3, $4) returning *",
+            [req.params.id, req.body.name, req.body.content, req.body.rating]
+        );
+        res.status(201).json({
+            status: "success",
+            data: {
+                review: newReview.rows[0]
+            }
+        })
+
+    } catch (err) {
+        console.log('ERROR: ', err);
+    }
+})
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
